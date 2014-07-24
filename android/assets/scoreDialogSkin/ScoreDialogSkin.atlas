@@ -1,0 +1,25 @@
+ScoreDialogSkin.png
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+ScoreDialog
+  rotate: false
+  xy: 2, 2
+  size: 228, 156
+  orig: 228, 156
+  offset: 0, 0
+  index: -1
+playButtonTexture
+  rotate: true
+  xy: 45, 160
+  size: 317, 41
+  orig: 317, 41
+  offset: 0, 0
+  index: -1
+playButtonTexture_down
+  rotate: true
+  xy: 2, 160
+  size: 317, 41
+  orig: 317, 41
+  offset: 0, 0
+  index: -1
