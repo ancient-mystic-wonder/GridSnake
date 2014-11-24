@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.*;
 import com.badlogic.gdx.scenes.scene2d.actions.MoveToAction;
 import com.badlogic.gdx.utils.Array;
@@ -320,7 +319,7 @@ public class GameScreen implements Screen {
          * It gets called every update step
          *
          */
- 		public void checkMove(int newX, int newY)
+ 		public boolean checkMove(int newX, int newY)
  		{
  			if((newX != currentX || newY != currentY) && checkValidMove(newX,newY) && isAlive)
  			{
@@ -329,7 +328,9 @@ public class GameScreen implements Screen {
  				//System.out.println(currentMove);
  				currentX = newX; currentY = newY;
  				currentLife = maxLife;
+                return true;
  			}
+            return false;
  		}
  		
  		public void checkCompensationMove(int touchX, int touchY)
@@ -355,24 +356,7 @@ public class GameScreen implements Screen {
  				currentLife = maxLife;
  			}*/
  		}
- 		
- 		public void checkKill()
- 		{
- 			boolean kill = false;
- 			for(SnakeBlock currentSnakeBlock : snakeBlockList)
- 			{
- 				if(!currentSnakeBlock.equals(snakeHead) && !currentSnakeBlock.equals(snakeTail))
- 					if(snakeHead.indexX == currentSnakeBlock.indexX && snakeHead.indexY == currentSnakeBlock.indexY)
- 					{
- 						kill = true;
- 						break;
- 					}
- 			}
- 			if (kill)
- 			{
- 				grid.stopGame("hit");
- 			}
- 		}
+
 
         public void checkFull()
         {
@@ -416,7 +400,6 @@ public class GameScreen implements Screen {
  				//checkMove(grid.getIndex_X(),grid.getIndex_Y());
  				//checkCompensationMove(grid.getIndex_X(),grid.getIndex_Y());
                 checkFull();
- 				checkKill();
  			}
 
             if(this.isFlashing)
@@ -514,105 +497,9 @@ public class GameScreen implements Screen {
  		
  	}
  	
- 	public class Food extends Actor
- 	{
- 		Texture texture = new Texture(Gdx.files.internal("textures/FoodTexture.png"));
-         int indexX;
-         int indexY;
-         float blockWidth;
-         float blockHeight;
 
-         public Food(int x, int y, float w, float h)
-         {
-         	this.indexX = x;
-             this.indexY = y;
-             this.blockWidth = w;
-             this.blockHeight = h;
-             setBounds(x*w, y*h, w, h);
-             
-             if (solidify)
-            	 texture = new Texture(Gdx.files.internal("textures/FoodTexture_solid.png"));
-             
-             texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
-         
-         }
-
-        public void reposition(int x, int y)
-        {
-            this.indexX = x;
-            this.indexY = y;
-        }
-
-         @Override
-         public void draw(Batch batch, float alpha){
-             batch.draw(texture,indexX*getWidth(),indexY*getHeight(),getWidth(), getHeight());
-             //System.out.println(indexX*getX()+" "+indexY*getY());
-         }
-
-         
- 	}
  	
- 	public class FoodSpawner extends Actor
- 	{
- 		Array<Food> foodList;
- 		Array<SnakeBlock> snakeBlockList;
-        Array<Coordinate> available;
- 		Grid grid;
- 		Snake snake;
- 		
- 		public FoodSpawner(Grid g, Snake s)
- 		{
- 			this.grid = g;
- 			this.snake = s;
- 			foodList = new Array<Food>();
-            foodList.add(new Food(BLOCK_NUMBER_X,BLOCK_NUMBER_Y,BLOCK_WIDTH,BLOCK_HEIGHT));
 
- 		}
- 		
- 		public void spawnFood()
- 		{
- 			snakeBlockList = snake.snakeBlockList;
-            available = new Array<Coordinate>(BLOCK_NUMBER_X*BLOCK_NUMBER_Y);
-
-            for(int x=0; x<BLOCK_NUMBER_X; x++)
-                for(int y=0; y<BLOCK_NUMBER_Y; y++)
-                    available.add(new Coordinate(x,y));
-
-
-            for (SnakeBlock currentSnakeBlock : snakeBlockList)
-            {
-                int removeX = currentSnakeBlock.indexX;
-                int removeY = currentSnakeBlock.indexY;
-                available.removeValue(new Coordinate(removeX, removeY), false);
-            }
-
-            int rand = MathUtils.random(0,available.size-1);
-            Coordinate newFoodPosition = available.get(rand);
-
-
-            foodList.get(0).reposition(newFoodPosition.x, newFoodPosition.y);
- 		}
- 		
- 		public void empty()
- 		{
- 			foodList.clear();
- 		}
- 		
- 		public Array<Food> getFoods()
- 		{
- 			return this.foodList;
- 		}
- 		
- 		@Override
- 		public void draw(Batch batch, float alpha)
- 		{
- 			for(Food f : foodList)
- 			{
- 				f.draw(batch, alpha);
- 			}
-         }
- 		
- 	}
  	
 
  	
@@ -634,6 +521,7 @@ public class GameScreen implements Screen {
  		
  		Snake snake;
  		FoodSpawner foodSpawner;
+        ObstacleSpawner obstacleSpawner;
  		GameUI gameUI;
  		Stage stage;
  		GridSnakeGame game;
@@ -641,7 +529,7 @@ public class GameScreen implements Screen {
  		int points = 0;
  		float timer = 0;
  		int bestLength = 3;
- 		
+
  		public Grid(int x, int y, float w, float h)
  		{
  			BLOCK_NUMBER_X = x;
@@ -718,10 +606,12 @@ public class GameScreen implements Screen {
  			
  			if(this.isPlaying)
  			{
- 				snake.checkMove(getIndex_X(),getIndex_Y());
- 				snake.checkCompensationMove(getIndex_X(), getIndex_Y());
- 				checkEatTail();
- 				checkEat();
+                if (snake.checkMove(getIndex_X(),getIndex_Y())) {
+                    snake.checkCompensationMove(getIndex_X(), getIndex_Y());
+                    checkEatTail();
+                    checkEat();
+                    checkKill();
+                }
  				
  				timer+=delta;
  				gameUI.updateTimer(timer);
@@ -777,6 +667,7 @@ public class GameScreen implements Screen {
 			bestLength = 3;
 			//foodSpawner.empty();
 			foodSpawner.spawnFood();
+            obstacleSpawner.empty();
  		}
  		
  		public void checkEat()
@@ -798,8 +689,10 @@ public class GameScreen implements Screen {
  			if (eat)
  			{
  				snake.elongate();
- 				if(snake.getLength() < BLOCK_NUMBER_X*BLOCK_NUMBER_Y)
- 					foodSpawner.spawnFood();
+ 				if(snake.getLength() < BLOCK_NUMBER_X*BLOCK_NUMBER_Y) {
+                    foodSpawner.spawnFood();
+                    checkSpawnObstacle();
+                }
  				points+=1;
  				gameUI.updateScore(points);
  				gameUI.updateMultiplier(snake.getLength());
@@ -819,6 +712,49 @@ public class GameScreen implements Screen {
  				eatTailSound.play();
  			}
  		}
+
+        public void checkKill()
+        {
+            boolean kill = false;
+            String s = "";
+            SnakeBlock snakeHead = snake.snakeHead;
+            SnakeBlock snakeTail = snake.snakeTail;
+            for(SnakeBlock currentSnakeBlock : snake.snakeBlockList)
+            {
+                if(!currentSnakeBlock.equals(snakeHead) && !currentSnakeBlock.equals(snakeTail))
+                    if(snakeHead.indexX == currentSnakeBlock.indexX && snakeHead.indexY == currentSnakeBlock.indexY)
+                    {
+                        kill = true;
+                        s = "self";
+                        break;
+                    }
+            }
+
+            for(Obstacle currentObstacle : obstacleSpawner.obstacleList)
+            {
+                if(snakeHead.indexX == currentObstacle.indexX && snakeHead.indexY == currentObstacle.indexY)
+                {
+                    kill = true;
+                    s = "obstacle";
+                    break;
+                }
+            }
+
+            if (kill)
+                grid.stopGame(s);
+        }
+
+        public void checkSpawnObstacle()
+        {
+            if(points > 50)
+                obstacleSpawner.spawnObstacle(1);
+            else if (points > 100)
+                obstacleSpawner.spawnObstacle(2);
+            else if (points > 150)
+                obstacleSpawner.spawnObstacle(3);
+            else
+                obstacleSpawner.spawnObstacle(4);
+        }
  		
  		public void showScore(String defeatString)
  		{
@@ -841,10 +777,40 @@ public class GameScreen implements Screen {
  		{
  			this.snake.clear();
  			this.foodSpawner.clear();
+            this.obstacleSpawner.empty();
  			this.clear();
  			this.game.mainMenu();
  			
  		}
+
+        public Array<Coordinate> getFreeTiles(int mode) // mode: 1- exclude snake   2-exclude snake and food
+        {
+
+            Array available = new Array<Coordinate>(GameScreen.BLOCK_NUMBER_X*GameScreen.BLOCK_NUMBER_Y);
+
+            Array<SnakeBlock> snakeBlockList = snake.snakeBlockList;
+
+            for (int x = 0; x < GameScreen.BLOCK_NUMBER_X; x++)
+                for (int y = 0; y < GameScreen.BLOCK_NUMBER_Y; y++)
+                    available.add(new Coordinate(x, y));
+
+
+            for (SnakeBlock currentSnakeBlock : snakeBlockList) {
+                int removeX = currentSnakeBlock.indexX;
+                int removeY = currentSnakeBlock.indexY;
+                available.removeValue(new Coordinate(removeX, removeY), false);
+            }
+
+            if (mode == 2) {
+                for (Food currentFood : foodSpawner.getFoods()) {
+                    int removeX = currentFood.indexX;
+                    int removeY = currentFood.indexY;
+                    available.removeValue(new Coordinate(removeX, removeY), false);
+                }
+            }
+
+            return available;
+        }
  		
  		public void setSnake(Snake s)
  		{
@@ -870,7 +836,8 @@ public class GameScreen implements Screen {
  		{
  			this.game = g;
  		}
- 		
+
+        public void setObstacleSpawner(ObstacleSpawner s) {this.obstacleSpawner = s;}
  	}
  	
  	
@@ -883,14 +850,14 @@ public class GameScreen implements Screen {
      
      int CURRENT_WIDTH;
      int CURRENT_HEIGHT;
-     float BLOCK_WIDTH;
-     float BLOCK_HEIGHT;
-     int BLOCK_NUMBER_X = 7;
-     int BLOCK_NUMBER_Y = 8;
+     public static float BLOCK_WIDTH;
+     public static float BLOCK_HEIGHT;
+     public static int BLOCK_NUMBER_X = 7;
+     public static int BLOCK_NUMBER_Y = 8;
      Grid grid;
      GameUI gameUI;
      
-     boolean solidify = false;
+     public static boolean solidify = false;
      
      public int getGCD(int a, int b) { return b==0 ? a : getGCD(b, a%b); }
      
@@ -971,21 +938,25 @@ public class GameScreen implements Screen {
          
          Snake snake = new Snake(grid);
          FoodSpawner foodSpawner = new FoodSpawner(grid,snake);
-         foodSpawner.spawnFood();
+         ObstacleSpawner obstacleSpawner = new ObstacleSpawner(grid,snake);
+
          
          gameUI = new GameUI(grid);
          gameUI.stop();
          
          grid.setSnake(snake);
          grid.setFoodSpawner(foodSpawner);
+         grid.setObstacleSpawner(obstacleSpawner);
          grid.setGameUI(gameUI);
          grid.setStage(stage);
          grid.setGame(game);
          
          stage.addActor(snake);
          stage.addActor(foodSpawner);
+         stage.addActor(obstacleSpawner);
          stage.addActor(gameUI);
-         
+
+         foodSpawner.spawnFood();
 
          //WindowStyle newStyle = new WindowStyle();
          //newStyle.titleFont = new BitmapFont();      

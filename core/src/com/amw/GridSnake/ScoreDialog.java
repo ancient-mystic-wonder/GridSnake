@@ -146,8 +146,10 @@ public class ScoreDialog extends Table {
 	
 	private void determineText(String deathType)
 	{
-		if(deathType.equals("hit"))
+		if(deathType.equals("self"))
 			defeatText="You hit yourself!";
+        else if(deathType.equals("obstacle"))
+            defeatText="You hit an obstacle!";
 		else if(deathType.equals("letitgo"))
 			defeatText="You let go of the snake!";
 		else if(deathType.equals("timer"))
