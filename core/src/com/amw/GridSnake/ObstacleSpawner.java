@@ -15,7 +15,7 @@ public class ObstacleSpawner extends Actor
     Array<Coordinate> available;
     GameScreen.Grid grid;
     GameScreen.Snake snake;
-    private int obstacleNumber = 4;
+    private int obstacleNumber = 6;
 
     public ObstacleSpawner(GameScreen.Grid g, GameScreen.Snake s)
     {
@@ -30,10 +30,13 @@ public class ObstacleSpawner extends Actor
 
     public void spawnObstacle(int number)
     {
-        available = grid.getFreeTiles(2);
+        available = grid.getFreeTiles(3);
+
+        for (Obstacle currentObstacle : obstacleList)
+            currentObstacle.reposition(-1, -1);
 
         if(available.size > 0) {
-            for(int i=0; i<obstacleNumber; i++) {
+            for(int i=0; i<number; i++) {
                 int rand = MathUtils.random(0, available.size - 1);
                 Coordinate newFoodPosition = available.get(rand);
                 obstacleList.get(i).reposition(newFoodPosition.x, newFoodPosition.y);

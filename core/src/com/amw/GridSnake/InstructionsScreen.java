@@ -102,16 +102,18 @@ public class InstructionsScreen implements Screen {
         // INSTRUCTIONS
         LabelStyle labelStyle = new LabelStyle(buttonFont,gray);
         LabelStyle instructionsStyle = new LabelStyle(companyFont,gray);
-        instructionsStyle.font.setScale(0.35f);
+        instructionsStyle.font.setScale(0.25f);
         
         Label instructionText = new Label("INSTRUCTIONS", labelStyle);
         instructionText.setFontScale(1.5f,1.5f);
         
         Label instruction1 = new Label("- EAT THE FOODS TO GET LONGER ", instructionsStyle);
 
-        Label instruction2 = new Label("- EAT YOUR TAIL TO GET SHORTER", instructionsStyle);
+        Label instruction2 = new Label("- EAT YOUR TAIL OR WEAK SPOT TO GET SHORTER", instructionsStyle);
 
-        Label instruction3 = new Label("- GIVE DALE YOUR MONEY", instructionsStyle);
+        Label instruction3 = new Label("- DON'T HIT THE OBSTACLES", instructionsStyle);
+
+        Label instruction4 = new Label("- GIVE DALE YOUR MONEY", instructionsStyle);
         
         // BUTTON INSTANTIATION
 
@@ -135,6 +137,8 @@ public class InstructionsScreen implements Screen {
         table.add(instruction2).pad(2);
         table.row();
         table.add(instruction3).pad(2);
+        table.row();
+        table.add(instruction4).pad(2);
         table.row();
         table.add(backButton).width(BUTTON_WIDTH).height(BUTTON_HEIGHT).pad(10);
         stage.addActor(table);

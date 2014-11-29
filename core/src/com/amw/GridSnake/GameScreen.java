@@ -40,6 +40,7 @@ public class GameScreen implements Screen {
          Texture texture = new Texture(Gdx.files.internal("textures/SnakeBodyTexture.png"),true);
          Texture headTexture = new Texture(Gdx.files.internal("textures/SnakeHeadTexture.png"));
          Texture tailTexture = new Texture(Gdx.files.internal("textures/SnakeTailTexture.png"));
+         Texture weakPointTexture = new Texture(Gdx.files.internal("textures/SnakeWeakpointTexture.png"));
          int indexX;
          int indexY;
          float blockWidth;
@@ -47,6 +48,7 @@ public class GameScreen implements Screen {
          boolean flip = false;
          boolean isHead = false;
          boolean isTail = false;
+         boolean isWeakPoint = false;
          Array<Move> moveList;
          Move previousMove = Move.NONE;
 
@@ -105,6 +107,7 @@ public class GameScreen implements Screen {
         	 texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
         	 headTexture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
         	 tailTexture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+             weakPointTexture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
          }
          
          public void changeHeadStatus(boolean b)
@@ -116,6 +119,12 @@ public class GameScreen implements Screen {
          {
          	this.isTail = b;
          }
+
+        public void changeWeakPointStatus(boolean b)
+        {
+            this.isWeakPoint = b;
+        }
+
          
          public Move oppositeMove(Move m)
          {
@@ -213,6 +222,8 @@ public class GameScreen implements Screen {
          		toDraw = headTexture;
          	else if(this.isTail)
          		toDraw = tailTexture;
+            else if(this.isWeakPoint)
+                toDraw = weakPointTexture;
          	else
          		toDraw = texture;
          	
@@ -236,11 +247,13 @@ public class GameScreen implements Screen {
  		Grid grid;
  		SnakeBlock snakeHead;
  		SnakeBlock snakeTail;
+        SnakeBlock snakeWeakPoint;
  		int currentX, currentY;
  		Move previousMove = Move.NONE;
  		
  		float maxLife = 1.0f;
  		float currentLife = 1.0f;
+        int weakPointIndex = -1;
  		//float maxLife = 15f;
  		//float currentLife = 15f;
  		
@@ -325,6 +338,7 @@ public class GameScreen implements Screen {
  			{
  				Move currentMove = getMoveType(currentX,currentY,newX,newY);
  				moveBlocks(currentMove);
+
  				//System.out.println(currentMove);
  				currentX = newX; currentY = newY;
  				currentLife = maxLife;
@@ -373,6 +387,23 @@ public class GameScreen implements Screen {
  				currentSnakeBlock.popFromMoveStack();
  			}
  		}
+
+        public void moveWeakBlock(int move)
+        {
+            if(weakPointIndex > 0)
+                snakeBlockList.get(weakPointIndex).changeWeakPointStatus(false);
+
+            if(snakeBlockList.size > 4) {
+
+                weakPointIndex += move;
+                if (weakPointIndex > snakeBlockList.size - 2 || weakPointIndex == 0 || weakPointIndex%2==1) {
+                    weakPointIndex = 4;
+                    System.out.println("wrap");
+                }
+                snakeBlockList.get(weakPointIndex).changeWeakPointStatus(true);
+                System.out.println(weakPointIndex);
+            }
+        }
 
  		public float getAlpha(float life)
  		{
@@ -457,9 +488,21 @@ public class GameScreen implements Screen {
  		{
  			SnakeBlock lastBlock = snakeBlockList.removeIndex(snakeBlockList.size-1);
  			snakeTail = snakeBlockList.get(snakeBlockList.size-1);
+            if(snakeTail.isWeakPoint)
+                snakeTail.changeWeakPointStatus(false);
+            moveWeakBlock(1);
  			snakeTail.changeTailStatus(true);
  			snakeTail.rotateSnakeBlock(snakeTail.moveList.get(0));
  		}
+
+        public void reduceWeakpoint()
+        {
+            snakeBlockList.removeRange(weakPointIndex,snakeBlockList.size-1);
+            snakeTail = snakeBlockList.get(snakeBlockList.size-1);
+            snakeTail.changeTailStatus(true);
+            weakPointIndex = -1;
+            snakeTail.rotateSnakeBlock(snakeTail.moveList.get(0));
+        }
  		
  		public void resetSnake()
  		{
@@ -488,14 +531,16 @@ public class GameScreen implements Screen {
  			
  			currentLife = maxLife;
             this.isFlashing = false;
+            weakPointIndex = -1;
  		}
  		
  		public int getLength()
  		{
  			return this.snakeBlockList.size;
  		}
- 		
- 	}
+
+
+    }
  	
 
  	
@@ -609,6 +654,7 @@ public class GameScreen implements Screen {
                 if (snake.checkMove(getIndex_X(),getIndex_Y())) {
                     snake.checkCompensationMove(getIndex_X(), getIndex_Y());
                     checkEatTail();
+                    checkEatWeakpoint();
                     checkEat();
                     checkKill();
                 }
@@ -652,7 +698,7 @@ public class GameScreen implements Screen {
 
             if(defeatString.equals("letitgo"))
                 letGoSound.play();
-            else if(defeatString.equals("hit"))
+            else if(defeatString.equals("self") || defeatString.equals("obstacle"))
                 hitSound.play();
  		}
  		
@@ -688,6 +734,7 @@ public class GameScreen implements Screen {
  			
  			if (eat)
  			{
+                snake.moveWeakBlock(2);
  				snake.elongate();
  				if(snake.getLength() < BLOCK_NUMBER_X*BLOCK_NUMBER_Y) {
                     foodSpawner.spawnFood();
@@ -700,18 +747,31 @@ public class GameScreen implements Screen {
  			}
  		}
  		
- 		public void checkEatTail()
+ 		public void checkEatWeakpoint()
  		{
- 			SnakeBlock snakeHead = snake.snakeHead;
- 			SnakeBlock snakeTail = snake.snakeTail;
- 			 			
- 			if(snakeHead.indexX == snakeTail.indexX && snakeHead.indexY == snakeTail.indexY)
- 			{
- 				snake.reduceTail();
- 				gameUI.updateMultiplier(snake.getLength());
- 				eatTailSound.play();
- 			}
+            if(snake.weakPointIndex >= 4) {
+                SnakeBlock snakeHead = snake.snakeHead;
+                SnakeBlock snakeWeakpoint = snake.snakeBlockList.get(snake.weakPointIndex);
+                if (snakeHead.indexX == snakeWeakpoint.indexX && snakeHead.indexY == snakeWeakpoint.indexY) {
+                    snake.reduceWeakpoint();
+                    gameUI.updateMultiplier(snake.getLength());
+                    eatTailSound.play();
+                }
+            }
  		}
+
+        public void checkEatTail()
+        {
+            SnakeBlock snakeHead = snake.snakeHead;
+            SnakeBlock snakeTail = snake.snakeTail;
+
+            if(snakeHead.indexX == snakeTail.indexX && snakeHead.indexY == snakeTail.indexY)
+            {
+                snake.reduceTail();
+                gameUI.updateMultiplier(snake.getLength());
+                eatTailSound.play();
+            }
+        }
 
         public void checkKill()
         {
@@ -746,14 +806,36 @@ public class GameScreen implements Screen {
 
         public void checkSpawnObstacle()
         {
-            if(points > 50)
-                obstacleSpawner.spawnObstacle(1);
-            else if (points > 100)
-                obstacleSpawner.spawnObstacle(2);
-            else if (points > 150)
-                obstacleSpawner.spawnObstacle(3);
-            else
+            int fifth = BLOCK_NUMBER_X*BLOCK_NUMBER_Y/5;
+            int quarter = BLOCK_NUMBER_X*BLOCK_NUMBER_Y/4;
+            int third = BLOCK_NUMBER_X*BLOCK_NUMBER_Y/3;
+            int half = BLOCK_NUMBER_X*BLOCK_NUMBER_Y/2;
+            int len = snake.snakeBlockList.size;
+
+            if(len > fifth && len <= quarter) {
+                System.out.println("five");
+                obstacleSpawner.spawnObstacle(6);
+            }
+
+            else if(len > quarter && len <= third) {
+                System.out.println("four");
+                obstacleSpawner.spawnObstacle(5);
+            }
+            else if (len > third && len <= half) {
+                System.out.println("three");
                 obstacleSpawner.spawnObstacle(4);
+            }
+            else if (len > half && len <= BLOCK_NUMBER_X*BLOCK_NUMBER_Y-5) {
+                System.out.println("two");
+                obstacleSpawner.spawnObstacle(2);
+            }
+            else if (len < BLOCK_NUMBER_X*BLOCK_NUMBER_Y-4 && len >= BLOCK_NUMBER_X*BLOCK_NUMBER_Y-2) {
+                System.out.println("one");
+                obstacleSpawner.spawnObstacle(1);
+            }
+            else
+                obstacleSpawner.spawnObstacle(0);
+
         }
  		
  		public void showScore(String defeatString)
@@ -784,8 +866,8 @@ public class GameScreen implements Screen {
  		}
 
         public Array<Coordinate> getFreeTiles(int mode) // mode: 1- exclude snake   2-exclude snake and food
+                                                        //       3- exclude snake,food,adjacent to snake head&food
         {
-
             Array available = new Array<Coordinate>(GameScreen.BLOCK_NUMBER_X*GameScreen.BLOCK_NUMBER_Y);
 
             Array<SnakeBlock> snakeBlockList = snake.snakeBlockList;
@@ -801,12 +883,48 @@ public class GameScreen implements Screen {
                 available.removeValue(new Coordinate(removeX, removeY), false);
             }
 
-            if (mode == 2) {
+            if (mode == 2 || mode==3) {
                 for (Food currentFood : foodSpawner.getFoods()) {
                     int removeX = currentFood.indexX;
                     int removeY = currentFood.indexY;
                     available.removeValue(new Coordinate(removeX, removeY), false);
+
+                    //try to open up one square for the food
+                    if (!available.removeValue(new Coordinate(removeX-1, removeY), false))
+                        if (!available.removeValue(new Coordinate(removeX, removeY-1), false))
+                            if (!available.removeValue(new Coordinate(removeX+1, removeY), false))
+                                available.removeValue(new Coordinate(removeX, removeY+1), false);
                 }
+            }
+
+            if (mode == 3) {
+                SnakeBlock snakeHead = snake.snakeHead;
+
+                int removeX = snakeHead.indexX;
+                int removeY = snakeHead.indexY;
+
+                //directly adjacent
+                if(removeX-1 >= 0)
+                    available.removeValue(new Coordinate(removeX-1,removeY), false);
+                if(removeY-1 >= 0)
+                    available.removeValue(new Coordinate(removeX,removeY-1), false);
+                if(removeY+1 < grid.BLOCK_NUMBER_Y)
+                    available.removeValue(new Coordinate(removeX,removeY+1), false);
+                if(removeX+1 < grid.BLOCK_NUMBER_X)
+                    available.removeValue(new Coordinate(removeX+1,removeY), false);
+
+
+                //diagonally adjacent
+                /*if(removeX-1 >= 0 && removeY-1 >=0)
+                    available.removeValue(new Coordinate(removeX-1,removeY-1), false);
+                if(removeX-1 >= 0 && removeY+1 < grid.BLOCK_NUMBER_Y)
+                    available.removeValue(new Coordinate(removeX-1,removeY+1), false);
+                if(removeX+1 < grid.BLOCK_NUMBER_X && removeY-1 >=0)
+                    available.removeValue(new Coordinate(removeX+1,removeY-1), false);
+                if(removeX+1 < grid.BLOCK_NUMBER_X && removeY+1 < grid.BLOCK_NUMBER_Y)
+                    available.removeValue(new Coordinate(removeX+1,removeY+1), false);*/
+
+                System.out.println(removeX + " " + removeY);
             }
 
             return available;
